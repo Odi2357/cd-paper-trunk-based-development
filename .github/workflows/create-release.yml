@@ -101,7 +101,7 @@ jobs:
         git config user.email "<>"
     - name: Update version
       run: |
-        npm version preminor --preid="rc" -m "Upgrade to %s"
+        npm version prepatch --preid="rc" -m "Upgrade to %s"
         git push --follow-tags
     - name: Parse version
       run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
