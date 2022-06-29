@@ -1,0 +1,72 @@
+on:
+  push:
+    branches: [ "release/*" ]
+
+jobs:
+  build-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build & Test
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    - name: Clean install of dependencies
+      run: npm ci
+    - name: Build application
+      run: npm run build --if-present
+    - name: Run test
+      run: npm run test:prod
+
+  update-version:
+    needs: build-test
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ env.APP_VERSION }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build & Test
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    - name: Set up config
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "<>"
+    - name: Update version
+      run: |
+        npm version prerelease -m "Upgrade to %s"
+        git push --follow-tags
+    - name: Parse version
+      run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+    - run: echo "Updated application to version ${{ env.APP_VERSION }}."
+
+  create-release:
+    needs: update-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.update-version.outputs.version }}
+          release_name: Release ${{ needs.update-version.outputs.version }}
+          body: |
+            Release ${{ needs.update-version.outputs.version }}
+          draft: false
+          prerelease: true
+      - name: Deploy to TEST
+        run: echo "Successfully deployed to TEST-Environment."
